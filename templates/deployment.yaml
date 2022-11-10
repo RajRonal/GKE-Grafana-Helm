@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind : Deployment
+metadata:
+     name: go-metrics
+     labels:
+         app: go-metrics
+         
+spec:
+     replicas: 1
+     selector:
+         matchLabels:
+             app: go-metrics
+            
+     template:
+         metadata:
+             annotations:
+               prometheus.io/path: "/metrics"
+               prometheus.io/port: "80"
+               prometheus.io/scrape: "true"
+             labels:
+                app: go-metrics
+                
+         spec:
+             containers:
+             -  name: go-metrics
+                image: gcr.io/metal-sky-367508/go-app
+                ports:
+                -  containerPort: 80
+                
+---
+apiVersion: v1
+kind: Service    
+metadata:
+     name: go-metrics-service
+     #annotations:
+        # prometheus.io/scrape: "true"
+        # prometheus.io/path: "/metrics"
+        # prometheus.io/port: "80"
+spec:
+  selector:    
+    app: go-metrics
+    #release: stable
+  type: LoadBalancer
+  ports:  
+  - name: http
+    port: 80
+    targetPort: 80
+    nodePort: 30039
+    protocol: TCP  
+    
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    #release: prometheus
+    app: go-metrics
+  name: go-metrics
+spec:
+  endpoints:
+  - path: /metrics
+    port: http
+    #scheme: http
+    interval: 15s
+
+  jobLabel: go-metrics
+  namespaceSelector:
+    matchNames:
+    - prometheus
+  selector:
+    matchLabels:
+      app: go-metrics
+
